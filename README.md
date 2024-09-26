@@ -1,6 +1,6 @@
 # Pasos para Modificar el Archivo `backend.js` en el Servidor
 
-Este archivo proporciona una guía paso a paso para modificar el archivo `backend.js` en el servidor y recrear la imagen Docker correspondiente. Sigue los pasos a continuación para realizar correctamente las modificaciones.
+Este archivo proporciona una guía paso a paso para modificar el archivo `backend.js` en el servidor y recrear el proceso correspondiente con PM2. Sigue los pasos a continuación para realizar correctamente las modificaciones.
 
 ---
 
@@ -27,27 +27,25 @@ Abre una conexión SSH con la VM para acceder al sistema de archivos y gestionar
 - Dentro de la sesión SSH, elimina el archivo `backend.js` existente:
 
 ``` 
-sudo rm -rf backend/backend.js
+sudo rm -rf backend.js
 ```
 
  ## 6.  Subir el nuevo archivo `backend.js`
 - Se utiliza la propia interfaz de google
 
- ## 7. Mover el archivo a la carpeta backend
- ```
-sudo mv backend.js backend
+ ## 7.  Reiniciar el proceso con PM2
+- Utilizando el comando:
+```
+pm2 restart backend
 ```
 
-## 8. Reconstruir la imagen Docker
+ ## 8.  Verificar que el servidor está funcionando
+- Verifica el estado del proceso con el comando:
 ```
-cd backend
-sudo docker build -t backend .
+pm2 status
 ```
 
-## 9.  Recrear el contenedor con Docker Compose
-```
-sudo docker-compose up -d --force-recreate
-```
+
 
 
 
