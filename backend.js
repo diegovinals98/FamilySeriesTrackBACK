@@ -5,19 +5,19 @@ const bodyParser = require('body-parser');
 const nodemailer = require('nodemailer');
 const cors = require('cors');
 
-
+require('dotenv').config();
 const app = express();
 
 app.use(express.json()); // Para analizar application/json
 console.log('Conectando...')
-
+console.log(process.env.USER_MYSQL);
 
 // Crear conexión a la base de datos
 const db = mysql.createConnection({
-  host: '34.163.107.12', // La IP interna del contenedor MariaDB
-  user: 'diego', // El usuario de la base de datos
-  password: '27101998', // La contraseña de la base de datos
-  database: 'Series' // El nombre de tu base de datos
+  host: process.env.HOST_MYSQL, // La IP interna del contenedor MariaDB
+  user: process.env.USER_MYSQL, // El usuario de la base de datos
+  password: process.env.PASSWORD_MYSQL, // La contraseña de la base de datos
+  database: process.env.DATABASE_MYSQL // El nombre de tu base de datos
 });
 
 
