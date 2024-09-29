@@ -1,6 +1,7 @@
 const express = require('express');
 const mysql = require('mysql');
 const bodyParser = require('body-parser');
+const crypto = require('crypto');
 
 const nodemailer = require('nodemailer');
 const cors = require('cors');
@@ -1195,6 +1196,9 @@ app.post('/enviar-soporte', (req, res) => {
   });
 });
 
+
+
+
 app.get('/capitulos-vistos/:idUsuario', (req, res) => {
   const usuarioId = req.params.idUsuario;
 
@@ -1315,6 +1319,97 @@ app.get('/obtener-token/:idUsuario', (req, res) => {
     } else {
       res.status(404).send('Tokens no encontrados');
     }
+  });
+});
+
+// Endpoint para solicitar la recuperación de contraseña
+// TODO: Recuperar contraseña
+app.post('/solicitar-recuperacion-contrasena', (req, res) => {
+  const { email, usuarioParams } = req.body;
+  console.log('Entramos en solicitar recuperación de contraseña');
+  console.log('Email: ', email);
+  console.log('Usuario: ', usuarioParams);
+
+  // Verificar si el usuario existe
+  db.query('SELECT * FROM Usuarios WHERE Usuario = ?', [usuarioParams], (err, results) => {
+    if (err) {
+      console.error('Error al buscar el usuario:', err);
+      return res.status(500).send('Error al buscar el usuario');
+    }
+
+    if (results.length === 0) {
+      return res.status(404).send('Usuario no encontrado');
+    }
+
+    const usuario = results[0];
+    const token = crypto.randomBytes(20).toString('hex');
+    const expiracion = Date.now() + 3600000; // 1 hora
+
+    // Almacenar el token y la fecha de expiración en la base de datos
+    db.query('INSERT INTO tokenContrasena (resetPasswordToken, resetPasswordExpires, Email, nombreUsuario) VALUES (?, ?, ?, ?)', [token, expiracion, email, usuarioParams], (err) => {
+      if (err) {
+        console.error('Error al almacenar el token:', err);
+        return res.status(500).send('Error al almacenar el token');
+      }
+
+      let transporter = nodemailer.createTransport({
+        service: 'gmail', // Ejemplo con Gmail; ajusta según tu proveedor
+        auth: {
+            user: 'diego.vinalslage@gmail.com', // Tu dirección de correo
+            pass: 'jdlh mfat iezv vcgp', // Tu contraseña o token de app
+        }
+    });
+  
+    let mailOptions = {
+        from: `"FAMILY SERIES TRACK" <diego.vinalslage@gmail.com>`,
+        to: email,
+        subject: 'Recuperación de contraseña',
+        text: `Recibiste este correo porque solicitaste la recuperación de la contraseña de tu cuenta.\n\n` +
+              `Por favor, usa el siguiente token para recuperar tu contraseña:\n\n` +
+              `${token}\n\n` +
+              `Si no solicitaste esto, por favor ignora este correo y tu contraseña permanecerá sin cambios.\n`
+      };
+
+      // Enviar el correo electrónico
+      transporter.sendMail(mailOptions, (error, info) => {
+        if (error) {
+          console.error('Error al enviar el correo:', error);
+          return res.status(500).send('Error al enviar el correo');
+        }
+        res.json({ success: 1 });
+      });
+    });
+  });
+});
+
+// Endpoint para verificar el token y cambiar la contraseña
+app.post('/recuperar-contrasena', (req, res) => {
+  const { token, nuevaContrasena } = req.body;
+
+  console.log('Entramos en recuperar contraseña');
+  console.log('Token: ', token);
+  console.log('Nueva contraseña: ', nuevaContrasena);
+  // Verificar si el token es válido y no ha expirado
+  db.query('SELECT * FROM tokenContrasena WHERE resetPasswordToken = ? AND resetPasswordExpires > ?', [token, Date.now()], (err, results) => {
+    if (err) {
+      console.error('Error al buscar el token:', err);
+      return res.status(500).send('Error al buscar el token');
+    }
+
+    if (results.length === 0) {
+      return res.status(400).send('Token inválido o expirado');
+    }
+
+    const usuarioNombre = results[0].nombreUsuario;
+
+    // Actualizar la contraseña del usuario
+    db.query('UPDATE Usuarios SET Contraseña = ? WHERE Usuario = ?', [nuevaContrasena, usuarioNombre], (err) => {
+        if (err) {
+          console.error('Error al actualizar la contraseña:', err);
+          return res.status(500).send('Error al actualizar la contraseña');
+        }
+        res.json({ success: 1 });
+    });
   });
 });
 
