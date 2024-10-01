@@ -1414,7 +1414,95 @@ app.post('/recuperar-contrasena', (req, res) => {
 });
 
 
+app.post('/anadir-favorito', (req, res) => {
+  const { idUsuario, idSerie } = req.body;
 
+  if (!idUsuario || !idSerie) {
+    return res.status(400).send('ID de Usuario y ID de Serie son requeridos');
+  }
+
+  const sqlInsertFavorito = 'INSERT INTO Favoritos (ID_Usuario, ID_Serie) VALUES (?, ?)';
+
+  db.query(sqlInsertFavorito, [idUsuario, idSerie], (err, result) => {
+    if (err) {
+      console.error('Error al insertar en la tabla Favoritos:', err);
+      return res.status(500).send('Error al insertar en la tabla Favoritos');
+    }
+
+    console.log('Favorito añadido con éxito:', result);
+    res.json({ message: 'Favorito añadido con éxito', insertId: result.insertId });
+  });
+});
+
+
+app.get('/existe-favorito/:idUsuario/:idSerie', (req, res) => {
+  const { idUsuario, idSerie } = req.params;
+
+  if (!idUsuario || !idSerie) {
+    return res.status(400).send('ID de Usuario y ID de Serie son requeridos');
+  }
+
+  const sqlCheckFavorito = 'SELECT * FROM Favoritos WHERE ID_Usuario = ? AND ID_Serie = ?';
+
+  db.query(sqlCheckFavorito, [idUsuario, idSerie], (err, results) => {
+    if (err) {
+      console.error('Error al verificar en la tabla Favoritos:', err);
+      return res.status(500).send('Error al verificar en la tabla Favoritos');
+    }
+
+    if (results.length > 0) {
+      res.json({ exists: true, message: 'El favorito existe' });
+    } else {
+      res.json({ exists: false, message: 'El favorito no existe' });
+    }
+  });
+});
+
+
+app.get('/series-favoritas/:idUsuario', (req, res) => {
+  const { idUsuario } = req.params;
+
+  if (!idUsuario) {
+    return res.status(400).send('ID de Usuario es requerido');
+  }
+
+  const sqlGetSeriesFavoritas = 'SELECT ID_Serie FROM Favoritos WHERE ID_Usuario = ?';
+
+  db.query(sqlGetSeriesFavoritas, [idUsuario], (err, results) => {
+    if (err) {
+      console.error('Error al obtener las series favoritas:', err);
+      return res.status(500).send('Error al obtener las series favoritas');
+    }
+
+    const seriesIds = results.map(row => row.ID_Serie);
+    res.json({ seriesIds });
+  });
+});
+
+
+app.delete('/eliminar-favorito', (req, res) => {
+  const { idUsuario, idSerie } = req.body;
+
+  if (!idUsuario || !idSerie) {
+    return res.status(400).send('ID de Usuario y ID de Serie son requeridos');
+  }
+
+  const sqlDeleteFavorito = 'DELETE FROM Favoritos WHERE ID_Usuario = ? AND ID_Serie = ?';
+
+  db.query(sqlDeleteFavorito, [idUsuario, idSerie], (err, result) => {
+    if (err) {
+      console.error('Error al eliminar de la tabla Favoritos:', err);
+      return res.status(500).send('Error al eliminar de la tabla Favoritos');
+    }
+
+    if (result.affectedRows > 0) {
+      console.log('Favorito eliminado con éxito:', result);
+      res.json({ message: 'Favorito eliminado con éxito' });
+    } else {
+      res.status(404).send('Favorito no encontrado');
+    }
+  });
+});
 
 
 const PORT = process.env.PORT || 3000;
