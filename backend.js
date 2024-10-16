@@ -18,7 +18,8 @@ const db = mysql.createConnection({
   host: process.env.HOST_MYSQL, // La IP interna del contenedor MariaDB
   user: process.env.USER_MYSQL, // El usuario de la base de datos
   password: process.env.PASSWORD_MYSQL, // La contraseña de la base de datos
-  database: process.env.DATABASE_MYSQL // El nombre de tu base de datos
+  database: process.env.DATABASE_MYSQL, // El nombre de tu base de datos
+  charset: 'utf8mb4'
 });
 
 
@@ -41,6 +42,32 @@ app.use(cors({
 app.get('/admin/health', (req, res) => {
   res.send('Hello World');
 });
+
+app.post('/apple-login', (req, res) => {
+  const { userId } = req.body;
+
+  if (!userId) {
+    return res.status(400).json({ error: 'User ID is required' });
+  }
+
+  const sql = 'SELECT * FROM Usuarios WHERE Usuario = ?';
+
+  db.query(sql, [userId], (err, results) => {
+    if (err) {
+      console.error('Error al buscar usuario con Apple ID:', err);
+      return res.status(500).json({ error: 'Error interno del servidor' });
+    }
+
+    if (results.length === 0) {
+      return res.status(404).json({ error: 'Usuario no encontrado' });
+    }
+
+    const usuario = results[0];
+    res.json({ usuario });
+  });
+});
+
+
 
 
 app.post('/login2', (req, res) => {
@@ -1323,7 +1350,6 @@ app.get('/obtener-token/:idUsuario', (req, res) => {
 });
 
 // Endpoint para solicitar la recuperación de contraseña
-// TODO: Recuperar contraseña
 app.post('/solicitar-recuperacion-contrasena', (req, res) => {
   const { email, usuarioParams } = req.body;
   console.log('Entramos en solicitar recuperación de contraseña');
