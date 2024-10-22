@@ -144,6 +144,27 @@ app.get('/usuario', (req, res) => {
 });
 
 
+app.get('/usuario/:nombreUsuario', (req, res) => {
+  const { nombreUsuario } = req.params;
+  console.log(`Buscando información para el usuario: ${nombreUsuario}`);
+  
+  let sql = 'SELECT * FROM Usuarios WHERE Usuario = ?';
+  db.query(sql, [nombreUsuario], (err, results) => {
+    if (err) {
+      console.error('Error al buscar el usuario:', err);
+      return res.status(500).json({ error: 'Error interno del servidor' });
+    }
+    
+    if (results.length === 0) {
+      return res.status(404).json({ error: 'Usuario no encontrado' });
+    }
+    
+    console.log('Usuario encontrado:', results[0]);
+    res.json(results[0]);
+  });
+});
+
+
 app.put('/usuario/:id', (req, res) => {
   const { id } = req.params;
   const { newNombre, newApellidos, newUsuario, newContrasena } = req.body;
