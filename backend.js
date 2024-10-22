@@ -223,7 +223,7 @@ app.get('/check-device-id/:deviceId', (req, res) => {
       res.json({ IdUsuario: results[0].IdUsuario });
     } else {
       // Si no se encontró, devuelve un mensaje indicando que no existe
-      res.status(404).send("Device ID no encontrado: " , results);
+      res.status(404).json({ message: "Device ID no encontrado", results: results });
     }
   });
   
@@ -1272,7 +1272,7 @@ app.get('/capitulos-vistos/:idUsuario', (req, res) => {
 
 
 
-// Ejemplo de endpoint para temporadas vistas en total
+// Ejemplo de endpoint para temporadas en total
 app.get('/temporadas-vistas/:idUsuario', (req, res) => {
   const { idUsuario } = req.params;
 
@@ -1329,6 +1329,7 @@ app.post('/registrar-token-notificacion', (req, res) => {
 });
 
 
+// obetner token de notificacion push
 app.get('/obtener-token/:idUsuario', (req, res) => {
   const { idUsuario } = req.params;
   console.log('ID del usuario:', idUsuario);
@@ -1348,6 +1349,28 @@ app.get('/obtener-token/:idUsuario', (req, res) => {
     }
   });
 });
+
+// Eliminar token de notificación push específico
+app.delete('/eliminar-token', (req, res) => {
+  const { token } = req.body;
+  console.log('Eliminando token:', token);
+
+  db.query('DELETE FROM TokensNotificaciones WHERE token = ?', [token], (err, result) => {
+    if (err) {
+      console.error('Error al eliminar el token:', err);
+      return res.status(500).send('Error al eliminar el token');
+    }
+
+    if (result.affectedRows > 0) {
+      console.log(`Se eliminó el token ${token}`);
+      res.send(`Token eliminado correctamente`);
+    } else {
+      console.log(`No se encontró el token ${token} para eliminar`);
+      res.status(404).send('No se encontró el token para eliminar');
+    }
+  });
+});
+
 
 // Endpoint para solicitar la recuperación de contraseña
 app.post('/solicitar-recuperacion-contrasena', (req, res) => {
