@@ -48,6 +48,15 @@ pm2 status
 
 
 
+## 9. Nota Importante sobre Reinicio de la VM
+Cuando la máquina virtual se reinicia, su dirección IP pública cambia. Por lo tanto:
+
+- Accede al panel de administración DNS de tu proveedor
+- Localiza el registro A para `backendapi.familyseriestrack.com` 
+- Actualiza la IP con la nueva dirección IP pública de la VM
+- Espera unos minutos a que se propaguen los cambios DNS
+
+Esto es necesario para mantener el acceso al backend a través del dominio.
 
 
 
