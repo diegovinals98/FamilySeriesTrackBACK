@@ -559,7 +559,7 @@ app.post('/agregar-visualizacion', (req, res) => {
 
 
 function agregarVisualizacion(userId, capituloId, res) {
-  const fechaActual = new Date().toISOString().slice(0, 10);
+  const fechaActual = new Date();
   const insertarVisualizacionSql = "INSERT INTO Visualizaciones (ID_Usuario, ID_Capitulo, Fecha_Visualizacion) VALUES (?, ?, ?)";
   db.query(insertarVisualizacionSql, [userId, capituloId, fechaActual], (err, results) => {
     if (err) {
@@ -684,17 +684,31 @@ app.get('/serie/:idSerie/usuarios', (req, res) => {
 app.get('/usuarios-viendo-serie/:nombreGrupo/:idSerie', (req, res) => {
   const { nombreGrupo, idSerie } = req.params;
 
+  // Primero, obtener todos los miembros del grupo
+  const obtenerMiembrosGrupoSql = `SELECT U.id, U.Nombre FROM Usuarios U JOIN Usuario_Grupo2 UG ON U.id = UG.ID_Usuario WHERE UG.ID_Grupo = (SELECT ID_Grupo FROM Grupos WHERE Nombre_grupo = ?)`;
+  db.query(obtenerMiembrosGrupoSql, [nombreGrupo], (err, miembros) => {
+    if (err) {
+      console.error('Error al obtener los miembros del grupo:', err);
+      return res.status(500).send('Error al obtener los miembros del grupo');
+    }
+
+    // Llamada a la función para obtener los usuarios viendo la serie
+    obtenerUsuariosViendoSerie(miembros, nombreGrupo, idSerie, res);
+  });
+});
+
+function obtenerUsuariosViendoSerie(miembros, nombreGrupo, idSerie, res) {
   const sql = `
     SELECT 
     U.id,
     U.Nombre,
-    T.Temporada_Mas_Alta,
-    MAX(C.Numero_Capitulo) AS Capitulo_Mas_Reciente
+    COALESCE(T.Temporada_Mas_Alta, 0) AS Temporada_Mas_Alta,
+    COALESCE(MAX(C.Numero_Capitulo), 0) AS Capitulo_Mas_Reciente
     FROM Usuarios U
-    INNER JOIN Usuario_Grupo2 UG ON U.id = UG.ID_Usuario
-    INNER JOIN Visualizaciones V ON U.id = V.ID_Usuario
-    INNER JOIN Capitulo C ON V.ID_Capitulo = C.ID_Capitulo
-    INNER JOIN (
+    LEFT JOIN Usuario_Grupo2 UG ON U.id = UG.ID_Usuario
+    LEFT JOIN Visualizaciones V ON U.id = V.ID_Usuario
+    LEFT JOIN Capitulo C ON V.ID_Capitulo = C.ID_Capitulo
+    LEFT JOIN (
         -- Subconsulta para obtener la temporada más alta de cada usuario
         SELECT 
             U.id AS ID_Usuario, 
@@ -718,11 +732,32 @@ app.get('/usuarios-viendo-serie/:nombreGrupo/:idSerie', (req, res) => {
       console.error('Error al realizar la consulta:', err);
       res.status(500).send('Error interno del servidor');
     } else {
-      console.log(results);
-      res.json(results);
+      // Asegurarse de que todos los miembros del grupo estén incluidos, incluso si no tienen visualizaciones
+      const resultadosCompletos = miembros.map(miembro => {
+        const encontrado = results.find(resultado => resultado.id === miembro.id);
+        if (encontrado) {
+          return encontrado;
+        } else {
+          return {
+            id: miembro.id,
+            Nombre: miembro.Nombre,
+            Temporada_Mas_Alta: 0,
+            Capitulo_Mas_Reciente: 0
+          };
+        }
+      }).sort((a, b) => {
+        if (a.Temporada_Mas_Alta === b.Temporada_Mas_Alta) {
+          return b.Capitulo_Mas_Reciente - a.Capitulo_Mas_Reciente;
+        } else {
+          return b.Temporada_Mas_Alta - a.Temporada_Mas_Alta;
+        }
+      });
+
+      console.log(resultadosCompletos);
+      res.json(resultadosCompletos);
     }
   });
-});
+}
 
 
 const insertarGrupoConIdUnico = (nombreGrupo, admin, res, callback) => {
@@ -1571,6 +1606,51 @@ app.delete('/eliminar-favorito', (req, res) => {
     } else {
       res.status(404).send('Favorito no encontrado');
     }
+  });
+});
+app.get('/visualizaciones-grupo-serie/:idGrupo/:idSerie', (req, res) => {
+  console.log('Recibida petición GET /visualizaciones-grupo-serie');
+  const { idGrupo, idSerie } = req.params;
+  console.log('Parámetros recibidos:', { idGrupo, idSerie });
+
+  if (!idGrupo || !idSerie) {
+    console.log('Error: Faltan parámetros requeridos');
+    return res.status(400).json({ error: 'Se requieren ID de grupo y serie' });
+  }
+
+  const sql = `
+    SELECT 
+      u.Nombre,
+      u.Apellidos, 
+      c.Numero_Temporada,
+      c.Numero_Capitulo,
+      v.Fecha_Visualizacion
+    FROM Visualizaciones v
+    INNER JOIN Usuarios u ON v.ID_Usuario = u.Id
+    INNER JOIN Usuario_Grupo2 ug ON u.Id = ug.ID_Usuario
+    INNER JOIN Capitulo c ON v.ID_Capitulo = c.ID_Capitulo
+    WHERE ug.ID_Grupo = ? 
+    AND c.ID_Serie = ?
+    ORDER BY v.Fecha_Visualizacion DESC
+  `;
+  console.log('Ejecutando consulta SQL:', sql);
+
+  db.query(sql, [idGrupo, idSerie], (err, results) => {
+    if (err) {
+      console.error('Error al obtener visualizaciones:', err);
+      return res.status(500).json({ error: 'Error al obtener visualizaciones' });
+    }
+
+    console.log('Resultados obtenidos:', results.length);
+    const visualizaciones = results.map(row => ({
+      nombreUsuario: `${row.Nombre} ${row.Apellidos}`,
+      temporada: row.Numero_Temporada,
+      capitulo: row.Numero_Capitulo, 
+      fecha: row.Fecha_Visualizacion
+    }));
+    console.log('Visualizaciones procesadas:', visualizaciones);
+
+    res.json(visualizaciones);
   });
 });
 
